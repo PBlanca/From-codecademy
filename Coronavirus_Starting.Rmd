@@ -1,0 +1,187 @@
+---
+title: "Investigating the Coronavirus Pandemic"
+output: html_notebook
+---
+
+# Setup 
+
+```{r message = FALSE}
+library(dplyr)
+library(readr)
+
+# Load the data
+confirmed <- read_csv("corona_confirmed.csv")
+deaths <- read_csv("corona_deaths.csv")
+recovered <- read_csv("corona_recovered.csv")
+
+# Inspect the data
+head(confirmed)
+head(deaths)
+head(recovered)
+```
+
+# Looking At March 22nd, 2020
+
+```{r}
+# Sum the total number of cases on March 22nd
+total_march22 <- confirmed %>%
+  select(`3/22/20`) %>%
+  sum()
+total_march22
+
+```
+
+# Filter By Values
+
+```{r}
+# Filter for countries in the northern hemisphere
+noth_march22 <- confirmed %>%
+  filter(Lat > 0) %>%
+  select(`3/22/20`)%>%
+  sum()
+noth_march22 
+
+# Filter for Australia cases
+
+australia_22march <- confirmed %>%
+  filter(`Country/Region`== 'Australia') %>%
+  select(`3/22/20`) %>%
+  sum()
+australia_22march
+  
+
+# Display percentages
+perc_north_22march <- noth_march22*100/total_march22
+perc_north_22march
+perc_australia_22march<- australia_22march*100/total_march22
+perc_australia_22march
+```
+
+# Group By Country
+
+```{r}
+# Group by countries
+confirmed_by_country <- confirmed %>%
+  group_by(`Country/Region`) %>%
+  summarize_at(vars(-`Province/State`, -Lat, -Long,), sum)
+head(confirmed_by_country )
+
+# Filter the grouped data set for Australia
+confirmed_by_country %>%
+  filter(`Country/Region` == "Australia") %>%
+  select(`3/22/20`)%>%
+  sum()
+
+```
+
+# Investigating The Recovered Dataset
+
+```{r}
+# Group by countries
+
+recovered_by_country <- recovered %>%
+  group_by(`Country/Region`) %>%
+  summarize_at(vars(-`Province/State`, -Lat, -Long,), sum) 
+
+head(recovered_by_country)
+
+recovered_by_country %>%
+  filter(`Country/Region` == "US") %>%
+  select(`3/22/20`)
+
+```
+
+```{r}
+# Filter to inspect the US row
+recovered_by_country %>%
+  filter(`Country/Region` == "US")
+```
+
+```{r}
+# Find the maximum number of confirmed and recovered cases
+max_us_confirmed  <- confirmed_by_country %>%
+  filter(`Country/Region` == "US") %>%
+  select(-`Country/Region`)%>%
+  max()
+max_us_confirmed 
+
+max_us_recovered <- recovered_by_country %>%
+  filter(`Country/Region` == "US") %>%
+  select(-`Country/Region`)%>%
+  max()
+max_us_recovered 
+
+#Si quisiera saber cual es la columna que tiene el numero mas grande remplazo max() por -> max.col(ties.method = c('first'))
+```
+
+# Transposing Data Frames
+
+```{r}
+# Transpose the data frame
+
+confirmed_by_country_r<- confirmed_by_country %>%
+  t()%>%
+  as.data.frame()
+head(confirmed_by_country_r)
+
+nrow(confirmed_by_country_r)
+tail(confirmed_by_country_r)
+
+```
+
+
+```{r}
+library(janitor)
+confirmed_by_country_r <- confirmed_by_country_r %>%
+  row_to_names(row_number = 1, remove_row = TRUE)
+head(confirmed_by_country_r)
+
+nrow(confirmed_by_country_r)
+
+
+```
+
+
+```{r}
+# Transform the columns to numeric values
+confirmed_by_country_r <- confirmed_by_country_r %>%
+  apply(2, as.numeric) %>%
+  as.data.frame()
+head(confirmed_by_country_r)
+```
+
+
+```{r}
+# Find the maximum number of confirmed cases in the US
+
+select(confirmed_by_country_r, 'US') %>% 
+  max()
+```
+
+# Extra Credit: Visualization
+
+```{r}
+# Add the date column
+confirmed_by_country_r <- confirmed_by_country_r %>%
+  mutate(date = c(1:nrow(confirmed_by_country_r)))
+
+head(select(confirmed_by_country_r, date, Italy), 10)
+
+
+```
+
+
+```{r}
+library(ggplot2)
+# Create a line graph with date on the X axis and number of cases in Italy on the Y axis
+confirmed_by_country_r %>% ggplot(aes(x = date, y = Italy)) +
+  geom_line()
+```
+
+
+```{r}
+# Add a proper title, x label, and y label
+confirmed_by_country_r %>% ggplot(aes(x = date, y = Italy)) +
+  geom_line() +
+  labs(x = "Number of days since January 22nd, 2020", y = "Number of confirmed cases", title = "Confirmed cases of COVID-19 in Italy")
+```
